@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import skimage.transform
 import numpy as np
 import time
+import sys
 import os
 import cPickle as pickle
 from scipy import ndimage
@@ -28,6 +29,7 @@ class CaptioningSolver(object):
             - update_rule: A string giving the name of an update rule
             - learning_rate: Learning rate; default value is 0.01.
             - print_every: Integer; training losses will be printed every print_every iterations.
+            - summary_every: Integer; training stats will be summarized every print_every iterations.
             - save_every: Integer; model variables will be saved every save_every epoch.
             - pretrained_model: String; pretrained model path
             - model_path: String; model path for saving
@@ -43,6 +45,7 @@ class CaptioningSolver(object):
         self.learning_rate = kwargs.pop('learning_rate', 0.01)
         self.print_bleu = kwargs.pop('print_bleu', False)
         self.print_every = kwargs.pop('print_every', 100)
+        self.summary_every = kwargs.pop('summary_every', 10)
         self.save_every = kwargs.pop('save_every', 1)
         self.log_path = kwargs.pop('log_path', './log/')
         self.model_path = kwargs.pop('model_path', './model/')
@@ -138,7 +141,7 @@ class CaptioningSolver(object):
                     curr_loss += l
 
                     # write summary for tensorboard visualization
-                    if i % 10 == 0:
+                    if i % self.summary_every == 0:
                         summary = sess.run(summary_op, feed_dict)
                         summary_writer.add_summary(summary, e*n_iters_per_epoch + i)
 
@@ -155,6 +158,7 @@ class CaptioningSolver(object):
                 print "Previous epoch loss: ", prev_loss
                 print "Current epoch loss: ", curr_loss
                 print "Elapsed time: ", time.time() - start_t
+                sys.stdout.flush()
                 prev_loss = curr_loss
                 curr_loss = 0
 
@@ -171,6 +175,7 @@ class CaptioningSolver(object):
                     save_pickle(all_decoded, "./data/val/val.candidate.captions.pkl")
                     scores = evaluate(data_path='./data', split='val', get_scores=True)
                     write_bleu(scores=scores, path=self.model_path, epoch=e)
+                sys.stdout.flush()
 
                 # save model's parameters
                 if (e+1) % self.save_every == 0:
