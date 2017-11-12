@@ -9,14 +9,17 @@ vgg_layers = ['conv1_1', 'relu1_1', 'conv1_2', 'relu1_2', 'pool1',
               'conv5_1', 'relu5_1', 'conv5_2', 'relu5_2', 'conv5_3', 'relu5_3', 'conv5_4', 'relu5_4']
 
 class Vgg19(object):
-    def __init__(self, vgg_path):
-        self.vgg_path = vgg_path
+    def __init__(self, model_path):
+        self.model_path = model_path
+        self.image_size = 224
+        self.L = 196
+        self.D = 512
 
     def build_inputs(self):
-        self.images = tf.placeholder(tf.float32, [None, 224, 224, 3], 'images')
+        self.images = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, 3], 'images')
 
     def build_params(self):
-        model = scipy.io.loadmat(self.vgg_path)
+        model = scipy.io.loadmat(self.model_path)
         layers = model['layers'][0]
         self.params = {}
         with tf.variable_scope('encoder'):
@@ -38,6 +41,11 @@ class Vgg19(object):
 
     def _pool(self, x):
         return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+
+    def load_weights(self, sess):
+        tf.logging.info("Restoring VGG19 variables from checkpoint file %s",
+                        self.model_path)
+        sess.run(tf.global_variables_initializer())
 
     def build_model(self):
         for i, layer in enumerate(vgg_layers):

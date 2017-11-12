@@ -1,6 +1,7 @@
 from scipy import ndimage
 from collections import Counter
 from core.vggnet import Vgg19
+from core.inception import InceptionV3
 from core.utils import *
 
 import tensorflow as tf
@@ -9,6 +10,7 @@ import pandas as pd
 import hickle
 import os
 import json
+import argparse
 
 
 def _process_caption_data(caption_file, image_dir, max_length):
@@ -119,15 +121,18 @@ def _build_image_idxs(annotations, id_to_idx):
     return image_idxs
 
 
-def main():
+def main(use_inception):
     # batch size for extracting feature vectors from vggnet.
     batch_size = 100
     # maximum length of caption(number of word). if caption is longer than max_length, deleted.  
     max_length = 15
     # if word occurs less than word_count_threshold in training dataset, the word index is special unknown token.
     word_count_threshold = 1
-    # vgg model path 
-    vgg_model_path = './data/imagenet-vgg-verydeep-19.mat'
+    # CNN model path 
+    if use_inception:
+        cnn_model_path = './data/inception_v3.ckpt'
+    else:
+        cnn_model_path = './data/imagenet-vgg-verydeep-19.mat'
 
     caption_file = 'data/annotations/captions_train2014.json'
     image_dir = 'image/%2014_resized/'
@@ -180,11 +185,15 @@ def main():
         save_pickle(feature_to_captions, './data/%s/%s.references.pkl' % (split, split))
         print "Finished building %s caption dataset" %split
 
-    # extract conv5_3 feature vectors
-    vggnet = Vgg19(vgg_model_path)
-    vggnet.build()
+    # extract feature vectors (conv_5_3 for vgg)
+    if use_inception:
+        cnn = InceptionV3(cnn_model_path)
+    else:
+        cnn = Vgg19(cnn_model_path)
+    cnn.build()
     with tf.Session() as sess:
-        tf.initialize_all_variables().run()
+        # tf.initialize_all_variables().run()
+        cnn.load_weights(sess)
         for split in ['train', 'val', 'test']:
             anno_path = './data/%s/%s.annotations.pkl' % (split, split)
             save_path = './data/%s/%s.features.hkl' % (split, split)
@@ -192,14 +201,14 @@ def main():
             image_path = list(annotations['file_name'].unique())
             n_examples = len(image_path)
 
-            all_feats = np.ndarray([n_examples, 196, 512], dtype=np.float32)
+            all_feats = np.ndarray([n_examples, cnn.L, cnn.D], dtype=np.float32)
 
             for start, end in zip(range(0, n_examples, batch_size),
                                   range(batch_size, n_examples + batch_size, batch_size)):
                 image_batch_file = image_path[start:end]
                 image_batch = np.array(map(lambda x: ndimage.imread(x, mode='RGB'), image_batch_file)).astype(
                     np.float32)
-                feats = sess.run(vggnet.features, feed_dict={vggnet.images: image_batch})
+                feats = sess.run(cnn.features, feed_dict={cnn.images: image_batch})
                 all_feats[start:end, :] = feats
                 print ("Processed %d %s features.." % (end, split))
 
@@ -209,4 +218,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--use_inception", action="store_true", help="use inception network image size (299 * 299)")
+    args = parser.parse_args()
+    main(args.use_inception)
