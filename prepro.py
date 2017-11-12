@@ -208,6 +208,11 @@ def main(use_inception):
                 image_batch_file = image_path[start:end]
                 image_batch = np.array(map(lambda x: ndimage.imread(x, mode='RGB'), image_batch_file)).astype(
                     np.float32)
+                # inception network needs a input from [-1, 1]
+                if use_inception:
+                    image_batch /= 255.0
+                    image_batch -= 0.5
+                    image_batch *= 2.0
                 feats = sess.run(cnn.features, feed_dict={cnn.images: image_batch})
                 all_feats[start:end, :] = feats
                 print ("Processed %d %s features.." % (end, split))
