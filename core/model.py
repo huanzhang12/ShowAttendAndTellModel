@@ -12,12 +12,14 @@
 
 from __future__ import division
 
+from core.vggnet import Vgg19
+from core.inception import InceptionV3
 import tensorflow as tf
 
 
 class CaptionGenerator(object):
     def __init__(self, word_to_idx, dim_feature=[196, 512], dim_embed=512, dim_hidden=1024, n_time_step=16, 
-                  prev2out=True, ctx2out=True, alpha_c=0.0, selector=True, dropout=True):
+                  prev2out=True, ctx2out=True, alpha_c=0.0, selector=True, dropout=True, use_cnn = None, cnn_model_path = None):
         """
         Args:
             word_to_idx: word-to-index mapping dictionary.
@@ -39,6 +41,7 @@ class CaptionGenerator(object):
         self.alpha_c = alpha_c
         self.selector = selector
         self.dropout = dropout
+        self.use_cnn = use_cnn
         self.V = len(word_to_idx)
         self.L = dim_feature[0]
         self.D = dim_feature[1]
@@ -52,8 +55,23 @@ class CaptionGenerator(object):
         self.const_initializer = tf.constant_initializer(0.0)
         self.emb_initializer = tf.random_uniform_initializer(minval=-1.0, maxval=1.0)
 
-        # Place holder for features and captions
-        self.features = tf.placeholder(tf.float32, [None, self.L, self.D])
+        if use_cnn is None:
+            # Place holder for features
+            self.features = tf.placeholder(tf.float32, [None, self.L, self.D])
+        else:
+            # build CNN model
+            if use_cnn == "inception":
+                self.cnn = InceptionV3(cnn_model_path)
+            elif use_cnn == "vgg":
+                self.cnn = Vgg19(cnn_model_path)
+            else:
+                raise(RuntimeError("Unknown CNN model " + use_cnn))
+            self.cnn.build()
+            # Place holder for image input
+            self.images = self.cnn.images
+            # output features from CNN
+            self.features = self.cnn.features
+        # Place holder for captions
         self.captions = tf.placeholder(tf.int32, [None, self.T + 1])
 
     def _get_initial_lstm(self, features):
@@ -137,6 +155,7 @@ class CaptionGenerator(object):
                                             scope=(name+'batch_norm'))
 
     def build_model(self):
+        start_vars = set(x.name for x in tf.global_variables())
         features = self.features
         captions = self.captions
         batch_size = tf.shape(features)[0]
@@ -177,9 +196,14 @@ class CaptionGenerator(object):
             alpha_reg = self.alpha_c * tf.reduce_sum((self.T/float(self.L) - alphas_all) ** 2)
             loss += alpha_reg
 
+        end_vars = tf.global_variables()
+        self.model_vars = [x for x in end_vars if x.name not in start_vars]
+
         return loss / tf.to_float(batch_size)
 
     def build_sampler(self, max_len=20):
+
+        start_vars = set(x.name for x in tf.global_variables())
         features = self.features
 
         # batch normalize feature vectors
@@ -216,4 +240,8 @@ class CaptionGenerator(object):
         alphas = tf.transpose(tf.stack(alpha_list), (1, 0, 2))     # (N, T, L)
         betas = tf.transpose(tf.squeeze(beta_list), (1, 0))    # (N, T)
         sampled_captions = tf.transpose(tf.stack(sampled_word_list), (1, 0))     # (N, max_len)
+
+        end_vars = tf.global_variables()
+        self.sampler_vars = [x for x in end_vars if x.name not in start_vars]
+
         return alphas, betas, sampled_captions
