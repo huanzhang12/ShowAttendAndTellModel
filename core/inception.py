@@ -1,6 +1,6 @@
 import tensorflow as tf
 import scipy.io
-from inception_core import inception_v3
+from core.inception_core import inception_v3
 
 class InceptionV3(object):
     def __init__(self, model_path):

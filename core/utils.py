@@ -1,5 +1,7 @@
+from __future__ import print_function
 import numpy as np
-import cPickle as pickle
+rbfrom six.moves import cPickle as pickle
+from six import iteritems
 import hickle
 import time
 import os
@@ -22,13 +24,13 @@ def load_coco_data(data_path='./data', split='train'):
         with open(os.path.join(data_path, 'word_to_idx.pkl'), 'rb') as f:
             data['word_to_idx'] = pickle.load(f)
           
-    for k, v in data.iteritems():
+    for k, v in iteritems(data):
         if type(v) == np.ndarray:
-            print k, type(v), v.shape, v.dtype
+            print(k, type(v), v.shape, v.dtype)
         else:
-            print k, type(v), len(v)
+            print(k, type(v), len(v))
     end_t = time.time()
-    print "Elapse time: %.2f" %(end_t - start_t)
+    print("Elapse time: %.2f" %(end_t - start_t))
     return data
 
 def decode_captions(captions, idx_to_word):

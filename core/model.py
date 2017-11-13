@@ -10,7 +10,8 @@
 # H is dimension of hidden state (default is 1024).
 # =========================================================================================
 
-from __future__ import division
+from __future__ import print_function, division
+from six import iteritems
 
 from core.vggnet import Vgg19
 from core.inception import InceptionV3
@@ -35,7 +36,7 @@ class CaptionGenerator(object):
         """
 
         self.word_to_idx = word_to_idx
-        self.idx_to_word = {i: w for w, i in word_to_idx.iteritems()}
+        self.idx_to_word = {i: w for w, i in iteritems(word_to_idx)}
         self.prev2out = prev2out
         self.ctx2out = ctx2out
         self.alpha_c = alpha_c
@@ -65,7 +66,7 @@ class CaptionGenerator(object):
             elif use_cnn == "vgg":
                 self.cnn = Vgg19(cnn_model_path)
             else:
-                raise(RuntimeError("Unknown CNN model " + use_cnn))
+                raise RuntimeError("Unknown CNN model " + use_cnn)
             self.cnn.build()
             # Place holder for image input
             self.images = self.cnn.images

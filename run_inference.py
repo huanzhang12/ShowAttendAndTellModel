@@ -1,9 +1,10 @@
 from __future__ import division
+from __future__ import print_function
 import os
 import sys
 import math
 import argparse
-import pickle
+from six.moves import cPickle as pickle
 import numpy as np
 from scipy import ndimage
 from PIL import Image
@@ -14,7 +15,7 @@ from core.model import CaptionGenerator
 class CaptionInference(object):
     def __init__(self, sess, model_path, use_inception):
         # word to index mapping
-        with open('./data/train/word_to_idx.pkl') as f:
+        with open('./data/train/word_to_idx.pkl', "rb") as f:
             self.word_to_idx = pickle.load(f)
 
         if use_inception:
@@ -29,27 +30,27 @@ class CaptionInference(object):
         self.batch_size = 128
         self.sess = sess
         self.use_inception = use_inception
-        print "Creating model..."
+        print("Creating model...")
         self.model = CaptionGenerator(self.word_to_idx, dim_feature=[L, D], dim_embed=512,
                                  dim_hidden=1800, n_time_step=16, prev2out=True, 
                                  ctx2out=True, alpha_c=5.0, selector=True, dropout=True, 
                                  use_cnn = "inception" if use_inception else "vgg",
                                  cnn_model_path = cnn_model_path)
 
-        print "Loading CNN weights..."
+        print("Loading CNN weights...")
         self.model.cnn.load_weights(sess)
-        print "Building sampler..."
+        print("Building sampler...")
         _, _, self.generated_captions = self.model.build_sampler(max_len=20)
 
         # initialize model and load weights
-        print "Loading LSTM weights..."
+        print("Loading LSTM weights...")
         # tf.global_variables_initializer().run()
         saver = tf.train.Saver(self.model.sampler_vars)
         saver.restore(sess, model_path)
 
     def inference_np(self, images):
         nimgs = images.shape[0]
-        print "Running inference on {} images...".format(nimgs)
+        print("Running inference on {} images...".format(nimgs))
         nbatches = int(math.ceil(nimgs / self.batch_size))
         all_decoded = []
         for i in range(nbatches):
@@ -57,7 +58,7 @@ class CaptionInference(object):
             end = (i+1) * self.batch_size
             end = nimgs if end >= nimgs else end
             batch_images = images[start:end]
-            print "processing {} images ({} to {})".format(batch_images.shape[0], start + 1, end)
+            print("processing {} images ({} to {})".format(batch_images.shape[0], start + 1, end))
             batch_gen_cap = self.sess.run(self.generated_captions, feed_dict = {self.model.images: batch_images})
             batch_decoded = decode_captions(batch_gen_cap, self.model.idx_to_word)
             all_decoded.extend(batch_decoded)
@@ -95,7 +96,7 @@ class CaptionInference(object):
 
 
     def inference_files(self, image_files):
-        print "processing {} images...".format(len(image_files))
+        print("processing {} images...".format(len(image_files)))
         image_batch = np.array([self.preprocess_file(x) for x in image_files])
         return self.inference_np(image_batch)
         
@@ -120,5 +121,5 @@ if __name__ == "__main__":
             out_file.write("{}\t{}\n".format(fname, caption))
     if args.output:
         out_file.close()
-        print "results saved to {}".format(args.output)
+        print("results saved to {}".format(args.output))
 
