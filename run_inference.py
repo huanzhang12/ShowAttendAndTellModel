@@ -1,4 +1,7 @@
+from __future__ import division
 import os
+import sys
+import math
 import argparse
 import pickle
 import numpy as np
@@ -23,6 +26,7 @@ class CaptionInference(object):
             D = 512
             cnn_model_path = './data/imagenet-vgg-verydeep-19.mat'
 
+        self.batch_size = 128
         self.sess = sess
         self.use_inception = use_inception
         print "Creating model..."
@@ -44,8 +48,19 @@ class CaptionInference(object):
         saver.restore(sess, model_path)
 
     def inference_np(self, images):
-        all_gen_cap = self.sess.run(self.generated_captions, feed_dict = {self.model.images: images})
-        all_decoded = decode_captions(all_gen_cap, self.model.idx_to_word)
+        nimgs = images.shape[0]
+        print "Running inference on {} images...".format(nimgs)
+        nbatches = int(math.ceil(nimgs / self.batch_size))
+        all_decoded = []
+        for i in range(nbatches):
+            start = i * self.batch_size
+            end = (i+1) * self.batch_size
+            end = nimgs if end >= nimgs else end
+            batch_images = images[start:end]
+            print "processing {} images ({} to {})".format(batch_images.shape[0], start + 1, end)
+            batch_gen_cap = self.sess.run(self.generated_captions, feed_dict = {self.model.images: batch_images})
+            batch_decoded = decode_captions(batch_gen_cap, self.model.idx_to_word)
+            all_decoded.extend(batch_decoded)
         return all_decoded
 
     def resize_image(self, image, image_size):
@@ -90,11 +105,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_inception", action="store_true", help="use inception network image size (299 * 299)")
     parser.add_argument("--model_path", default="model_best/model-best", help="lstm model path")
+    parser.add_argument("--output", default="", help="save output to a file")
     parser.add_argument("image", type=str, nargs='+', help="image file paths")
     args = parser.parse_args()
+    image_files = sorted(args.image)
+    if args.output:
+        out_file = open(args.output, "w")
+    else:
+        out_file = sys.stdout
     with tf.Session() as sess:
         cap_infer = CaptionInference(sess, args.model_path, args.use_inception)
-        captions = cap_infer.inference_files(args.image)
+        captions = cap_infer.inference_files(image_files)
         for fname, caption in zip(args.image, captions):
-            print fname, '\t', caption
+            out_file.write("{}\t{}\n".format(fname, caption))
+    if args.output:
+        out_file.close()
+        print "results saved to {}".format(args.output)
 
