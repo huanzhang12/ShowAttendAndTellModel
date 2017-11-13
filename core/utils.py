@@ -1,6 +1,6 @@
 from __future__ import print_function
 import numpy as np
-rbfrom six.moves import cPickle as pickle
+from six.moves import cPickle as pickle
 from six import iteritems
 import hickle
 import time
