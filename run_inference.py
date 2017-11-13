@@ -65,11 +65,15 @@ class CaptionInference(object):
         return image
     
     def preprocess_file(self, file_name):
-        if os.path.splitext(file_name)[1] == "npy":
-            return np.load(file_name)
+        if os.path.splitext(file_name)[1] == ".npy":
+            return np.squeeze(np.load(file_name))
         else:
-            img_np = np.array(self.resize_image(Image.open(file_name), self.model.cnn.image_size))
+            img_np = np.array(self.resize_image(Image.open(file_name), self.model.cnn.image_size)).astype(np.float32)
             # convert grey scale image to 3-channel
+            if self.use_inception:
+                img_np /= 255.0
+                img_np -= 0.5
+                img_np *= 2.0
             if img_np.ndim == 2:
                 img_np = np.stack((img_np,)*3, axis = -1)
             return img_np
@@ -77,11 +81,7 @@ class CaptionInference(object):
 
     def inference_files(self, image_files):
         print "processing {} images...".format(len(image_files))
-        image_batch = np.array([self.preprocess_file(x) for x in image_files]).astype(np.float32)
-        if self.use_inception:
-            image_batch /= 255.0
-            image_batch -= 0.5
-            image_batch *= 2.0
+        image_batch = np.array([self.preprocess_file(x) for x in image_files])
         return self.inference_np(image_batch)
         
 
