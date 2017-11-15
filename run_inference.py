@@ -14,18 +14,20 @@ from core.model import CaptionGenerator
 
 class CaptionInference(object):
     def __init__(self, sess, model_path, use_inception):
+
+        path_prefix = os.path.dirname(os.path.realpath(__file__))
         # word to index mapping
-        with open('./data/train/word_to_idx.pkl', "rb") as f:
+        with open(os.path.join(path_prefix, 'data/train/word_to_idx.pkl'), "rb") as f:
             self.word_to_idx = pickle.load(f)
 
         if use_inception:
             L = 64
             D = 2048
-            cnn_model_path = './data/inception_v3.ckpt'
+            cnn_model_path = os.path.join(path_prefix, 'data/inception_v3.ckpt')
         else:
             L = 196
             D = 512
-            cnn_model_path = './data/imagenet-vgg-verydeep-19.mat'
+            cnn_model_path = os.path.join(path_prefix, './data/imagenet-vgg-verydeep-19.mat')
 
         self.batch_size = 128
         self.sess = sess
