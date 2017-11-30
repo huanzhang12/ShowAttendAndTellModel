@@ -239,7 +239,7 @@ class CaptionGenerator(object):
             sampled_word_list.append(sampled_word)
 
         alphas = tf.transpose(tf.stack(alpha_list), (1, 0, 2))     # (N, T, L)
-        betas = tf.transpose(tf.squeeze(beta_list), (1, 0))    # (N, T)
+        betas = tf.transpose(tf.squeeze(beta_list, [2]), (1, 0))    # (N, T)
         sampled_captions = tf.transpose(tf.stack(sampled_word_list), (1, 0))     # (N, max_len)
 
         end_vars = tf.global_variables()
